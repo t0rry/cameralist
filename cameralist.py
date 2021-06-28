@@ -1,16 +1,14 @@
+from typing import DefaultDict
+from original import init_props
 import bpy
-from bpy.props import (
-    IntProperty,
-    FloatProperty,
-    FloatVectorProperty,
-    EnumProperty,
-    BoolProperty,
-)
+from bpy.props import StringProperty, IntProperty, CollectionProperty
+from bpy.types import PropertyGroup, UIList, Operator, Panel
+
 
 bl_info = {
     "name": "CameraList",
     "author": "t0rry_",
-    "version": (0, 0 , 1),
+    "version": (0, 0 , 2),
     "blender": (2, 80, 0),
     "location": "3Dビューポート > Sidebar",
     "description": "BlenderのUIを制御するアドオン",
@@ -21,161 +19,193 @@ bl_info = {
     "category": "Tutorial"
 }
 
-class SAMPLE27_OT_Nop(bpy.types.Operator):
+class ListItem(bpy.types.PropertyGroup):
+    """Group of properties representing an item in the list."""
+    
 
-    bl_idname = "object.sample27_nop"
-    bl_label = "NOP"
-    bl_description = "何もしない"
-    bl_options = {'REGISTER', 'UNDO'}
+
+    name: StringProperty(
+        name="Name",
+        description="A name for this item",
+        default=  "list_contents_name" )
+
+    random_prop: StringProperty(
+        name="Any other property you want",
+        description="",
+        default="")
+
+class LIST_OT_NewItem(bpy.types.Operator):
+    """Add a new item to the list."""
+
+    bl_idname = "my_list.new_item"
+    bl_label = "Add a new item"
 
     def execute(self, context):
-        self.report({'INFO'}, "add camera in CAMERALIST")
-        return {'FINISHED'}
+        
+        context.scene.my_list.add( )
 
-    def init_props():
-        scene = bpy.types.Scene
-        scene.test_01 = IntProperty(
-        name="Camera List",
-        description="登録したカメラのリスト（重複）登録されます",
-        items = []
-        )
-    # プロパティを削除
-    def clear_props():
-        scene = bpy.types.Scene
-        del scene.test_01
+        
+
+        
+
+        print("add item")
+
+        
+
+        return{'FINISHED'}
 
 
-class SAMPLE27_MT_NopMenu(bpy.types.Menu):
+class LIST_OT_DeleteItem(bpy.types.Operator):
+    """Delete the selected item from the list."""
 
-    bl_idname = "SAMPLE27_MT_NopMenu"
-    bl_label = "NOP メニュー"
-    bl_description = "何もしないオペレータを複数持つメニュー"
+    bl_idname = "my_list.delete_item"
+    bl_label = "Deletes an item"
 
-    def draw(self, context):
-        layout = self.layout
-        # メニュー項目の追加
-        for i in range(3):
-            layout.operator(SAMPLE27_OT_Nop.bl_idname, text=("項目 %d" % (i)))
+    @classmethod
+    def poll(cls, context):
+        return context.scene.my_list
+
+    def execute(self, context):
+        my_list = context.scene.my_list
+        index = context.scene.list_index
+
+        my_list.remove(index)
+        context.scene.list_index = min(max(0, index - 1), len(my_list) - 1)
+
+        return{'FINISHED'}
 
 
-# Sidebarのタブ [カスタムタブ] に、パネル [カスタムパネル] を追加
-class SAMPLE27_PT_CustomPanel(bpy.types.Panel):
+class LIST_OT_MoveItem(bpy.types.Operator):
+    """Move an item in the list."""
 
-    bl_label = "CameraList"         # パネルのヘッダに表示される文字列
-    bl_space_type = 'VIEW_3D'           # パネルを登録するスペース
-    bl_region_type = 'UI'               # パネルを登録するリージョン
-    bl_category = "CameraList"        # パネルを登録するタブ名
-    bl_context = "objectmode"           # パネルを表示するコンテキスト
+    bl_idname = "my_list.move_item"
+    bl_label = "Move an item in the list"
 
-    # ヘッダーのカスタマイズ
+    direction: bpy.props.EnumProperty(items=(('UP', 'Up', ""),
+                                              ('DOWN', 'Down', ""),))
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.my_list
+
+    def move_index(self):
+        """ Move index of an item render queue while clamping it. """
+
+        index = bpy.context.scene.list_index
+        list_length = len(bpy.context.scene.my_list) - 1  # (index starts at 0)
+        new_index = index + (-1 if self.direction == 'UP' else 1)
+
+        bpy.context.scene.list_index = max(0, min(new_index, list_length))
+
+    def execute(self, context):
+        my_list = context.scene.my_list
+        index = context.scene.list_index
+
+        neighbor = index + (-1 if self.direction == 'UP' else 1)
+        my_list.move(neighbor, index)
+        self.move_index()
+
+        return{'FINISHED'}
+
+class LIST_OT_AddCamera(bpy.types.Operator):
+    """Add Camera Object"""
+    bl_idname = "my_list.add_camera"
+    bl_label = "Add new camera object"
+
+    def execute(self, context):
+        bpy.ops.object.camera_add(rotation = (1.5708 , 0 , 0))
+        #x rotation = 90  = 1.5708 ???? wakaran 
+        print("add camera")
+        
+        return{'FINISHED'}
+
+
+class PT_ListExample(bpy.types.Panel):
+    """Demo panel for UI list Tutorial."""
+
+    bl_label = "Camera List"
+    bl_idname = "SCENE_PT_LIST_DEMO"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_context = "objectmode"
+
     def draw_header(self, context):
         layout = self.layout
-        layout.label(text="", icon='VIEW_CAMERA')
+        layout.label(text="", icon='VIEW_CAMERA')   
 
-    # メニューの描画処理
     def draw(self, context):
         layout = self.layout
         scene = context.scene
 
+        row = layout.row()
+        row.template_list("MY_UL_List", "The_List", scene,
+                          "my_list", scene, "list_index")
 
-        #display active camera
-        layout.label(text ="Active Camera")
-        layout.prop(scene, "camera")
-
-        #display camera list
-        layout.prop(context.scene, "sample27_prop_enum")
-        # 一行配置（アライメントあり）
-        row = layout.row(align=True)
-        # Cameradata_Inputボタンを追加
-        layout.label(text="Oparation CameraList:")
-        layout.operator(SAMPLE27_OT_Nop.bl_idname, text="LIST IN" , icon="PLAY")
-
-        # Cameradata Daleteボタンを追加
-        layout.operator(SAMPLE27_OT_Nop.bl_idname, text="LIST OUT" , icon="CANCEL")
-        layout.separator()
-
-
-        # ドロップダウンメニューを追加
-        layout.label(text="Active Camera:")
-        layout.menu(SAMPLE27_MT_NopMenu.bl_idname,
-                    text= "あとでかく")
+        row = layout.row()
+        row.operator('my_list.new_item', text='NEW')
+        row.operator('my_list.delete_item', text='REMOVE')
+        row.operator('my_list.move_item', text='UP').direction = 'UP'
+        row.operator('my_list.move_item', text='DOWN').direction = 'DOWN'
+        row.operator('my_list.add_camera', text='ADD CAMERA')
 
         layout.separator()
 
-        
+        layout.label(text="WARNIG :elected camera object, show NEW button")
+        #add any Panel t0rry_
 
-# プロパティの初期化
-def init_props():
-    scene = bpy.types.Scene
-    scene.sample27_prop_int = EnumProperty(
-        name="Camera List",
-        description="登録したカメラのリスト（重複）登録されます",
-        items = []
-    )
-    scene.sample27_prop_float = FloatProperty(
-        name="プロパティ 2",
-        description="プロパティ（float）",
-        default=0.75,
-        min=0.0,
-        max=1.0
-    )
-    scene.sample27_prop_floatv = FloatVectorProperty(
-        name="プロパティ 3",
-        description="プロパティ（float vector）",
-        subtype='COLOR_GAMMA',
-        default=(1.0, 1.0, 1.0),
-        min=0.0,
-        max=1.0
-    )
-    scene.sample27_prop_enum = EnumProperty(
-        name="プロパティ 4",
-        description="プロパティ（enum）",
-        items=[
-            ('ITEM_1', "項目 1", "項目 1"),
-            ('ITEM_2', "項目 2", "項目 2"),
-            ('ITEM_3', "項目 3", "項目 3")
-        ],
-        default='ITEM_1'
-    )
-    scene.sample27_prop_bool = BoolProperty(
-        name="プロパティ 5",
-        description="プロパティ（bool）",
-        default=False
-    )
+        if scene.list_index >= 0 and scene.my_list:
+            item = scene.my_list[scene.list_index]
 
+            row = layout.row()
+            row.prop(item, "name")
+            row.prop(item, "random_prop")
 
-# プロパティを削除
-def clear_props():
-    scene = bpy.types.Scene
-    del scene.sample27_prop_int
-    del scene.sample27_prop_float
-    del scene.sample27_prop_floatv
-    del scene.sample27_prop_enum
-    del scene.sample27_prop_bool
+class MY_UL_List(bpy.types.UIList):
+    """Demo UIList."""
 
+    def draw_item(self, context, layout, data, item, icon, active_data,
+                active_propname, index):
+
+        # We could write some code to decide which icon to use here...
+        custom_icon = 'OBJECT_DATAMODE'
+
+        # Make sure your code supports all 3 layout types
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            layout.label(text=item.name, icon = custom_icon)
+
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon = custom_icon)
 
 classes = [
-    SAMPLE27_OT_Nop,
-    SAMPLE27_MT_NopMenu,
-    SAMPLE27_PT_CustomPanel,
+    ListItem,
+    MY_UL_List,
+    LIST_OT_NewItem,
+    LIST_OT_DeleteItem,
+    LIST_OT_MoveItem,
+    PT_ListExample,
+    LIST_OT_AddCamera,
 ]
-
 
 def register():
     for c in classes:
         bpy.utils.register_class(c)
+    
     init_props()
-    print("サンプル 2-7: アドオン『サンプル 2-7』が有効化されました。")
+    print("Register of CameraList Addon")
 
-
+    bpy.types.Scene.my_list = CollectionProperty(type = ListItem)
+    bpy.types.Scene.list_index = IntProperty(name = "Index for my_list",
+                                             default = 0)
 
 
 def unregister():
-    clear_props()
+
+    del bpy.types.Scene.my_list
+    del bpy.types.Scene.list_index
+
     for c in classes:
         bpy.utils.unregister_class(c)
-    print("サンプル 2-7: アドオン『サンプル 2-7』が無効化されました。")
-
 
 if __name__ == "__main__":
     register()
