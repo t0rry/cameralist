@@ -21,34 +21,21 @@ bl_info = {
 
 class ListItem(bpy.types.PropertyGroup):
     """Group of properties representing an item in the list."""
-    
-
 
     name: StringProperty(
-        name="Name",
-        description="A name for this item",
-        default=  "list_contents_name" )
-
-    random_prop: StringProperty(
-        name="Any other property you want",
-        description="",
-        default="")
+        name="name",
+        default="camera_data")
 
 class LIST_OT_NewItem(bpy.types.Operator):
     """Add a new item to the list."""
 
-    bl_idname = "my_list.new_item"
+    bl_idname = "camera_list.new_item"
     bl_label = "Add a new item"
 
     def execute(self, context):
         
-        context.scene.my_list.add( )
+        context.scene.camera_list.add( )
 
-        
-
-        
-
-        print("add item")
 
         
 
@@ -58,19 +45,19 @@ class LIST_OT_NewItem(bpy.types.Operator):
 class LIST_OT_DeleteItem(bpy.types.Operator):
     """Delete the selected item from the list."""
 
-    bl_idname = "my_list.delete_item"
+    bl_idname = "camera_list.delete_item"
     bl_label = "Deletes an item"
 
     @classmethod
     def poll(cls, context):
-        return context.scene.my_list
+        return context.scene.camera_list
 
     def execute(self, context):
-        my_list = context.scene.my_list
+        camera_list = context.scene.camera_list
         index = context.scene.list_index
 
-        my_list.remove(index)
-        context.scene.list_index = min(max(0, index - 1), len(my_list) - 1)
+        camera_list.remove(index)
+        context.scene.list_index = min(max(0, index - 1), len(camera_list) - 1)
 
         return{'FINISHED'}
 
@@ -78,7 +65,7 @@ class LIST_OT_DeleteItem(bpy.types.Operator):
 class LIST_OT_MoveItem(bpy.types.Operator):
     """Move an item in the list."""
 
-    bl_idname = "my_list.move_item"
+    bl_idname = "camera_list.move_item"
     bl_label = "Move an item in the list"
 
     direction: bpy.props.EnumProperty(items=(('UP', 'Up', ""),
@@ -86,30 +73,30 @@ class LIST_OT_MoveItem(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.my_list
+        return context.scene.camera_list
 
     def move_index(self):
         """ Move index of an item render queue while clamping it. """
 
         index = bpy.context.scene.list_index
-        list_length = len(bpy.context.scene.my_list) - 1  # (index starts at 0)
+        list_length = len(bpy.context.scene.camera_list) - 1  # (index starts at 0)
         new_index = index + (-1 if self.direction == 'UP' else 1)
 
         bpy.context.scene.list_index = max(0, min(new_index, list_length))
 
     def execute(self, context):
-        my_list = context.scene.my_list
+        camera_list = context.scene.camera_list
         index = context.scene.list_index
 
         neighbor = index + (-1 if self.direction == 'UP' else 1)
-        my_list.move(neighbor, index)
+        camera_list.move(neighbor, index)
         self.move_index()
 
         return{'FINISHED'}
 
 class LIST_OT_AddCamera(bpy.types.Operator):
     """Add Camera Object"""
-    bl_idname = "my_list.add_camera"
+    bl_idname = "camera_list.add_camera"
     bl_label = "Add new camera object"
 
     def execute(self, context):
@@ -139,35 +126,33 @@ class PT_ListExample(bpy.types.Panel):
 
         row = layout.row()
         row.template_list("MY_UL_List", "The_List", scene,
-                          "my_list", scene, "list_index")
+                          "camera_list", scene, "list_index")
 
         row = layout.row()
-        row.operator('my_list.new_item', text='NEW')
-        row.operator('my_list.delete_item', text='REMOVE')
-        row.operator('my_list.move_item', text='UP').direction = 'UP'
-        row.operator('my_list.move_item', text='DOWN').direction = 'DOWN'
-        row.operator('my_list.add_camera', text='ADD CAMERA')
+        row.operator('camera_list.new_item', text='NEW')
+        row.operator('camera_list.delete_item', text='REMOVE')
+        row.operator('camera_list.move_item', text='UP').direction = 'UP'
+        row.operator('camera_list.move_item', text='DOWN').direction = 'DOWN'
+        row.operator('camera_list.add_camera', text='ADD CAMERA')
 
         layout.separator()
 
         layout.label(text="WARNIG :elected camera object, show NEW button")
         #add any Panel t0rry_
 
-        if scene.list_index >= 0 and scene.my_list:
-            item = scene.my_list[scene.list_index]
+        if scene.list_index >= 0 and scene.camera_list:
+            item = scene.camera_list[scene.list_index]
 
             row = layout.row()
             row.prop(item, "name")
             row.prop(item, "random_prop")
 
 class MY_UL_List(bpy.types.UIList):
-    """Demo UIList."""
-
     def draw_item(self, context, layout, data, item, icon, active_data,
                 active_propname, index):
 
         # We could write some code to decide which icon to use here...
-        custom_icon = 'OBJECT_DATAMODE'
+        custom_icon = 'RENDER_STILL'
 
         # Make sure your code supports all 3 layout types
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
@@ -194,14 +179,14 @@ def register():
     init_props()
     print("Register of CameraList Addon")
 
-    bpy.types.Scene.my_list = CollectionProperty(type = ListItem)
+    bpy.types.Scene.camera_list = CollectionProperty(type = ListItem)
     bpy.types.Scene.list_index = IntProperty(name = "Index for my_list",
                                              default = 0)
 
 
 def unregister():
 
-    del bpy.types.Scene.my_list
+    del bpy.types.Scene.camera_list
     del bpy.types.Scene.list_index
 
     for c in classes:
