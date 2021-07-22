@@ -1,7 +1,7 @@
 from typing import DefaultDict
 from original import init_props
 import bpy
-from bpy.props import StringProperty, IntProperty, CollectionProperty
+from bpy.props import StringProperty, IntProperty, CollectionProperty,EnumProperty,PointerProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel
 
 
@@ -22,9 +22,10 @@ bl_info = {
 class ListItem(bpy.types.PropertyGroup):
     """Group of properties representing an item in the list."""
 
-    name: StringProperty(
-        name="name",
-        default="camera_data")
+    cam_data: PointerProperty(  name="cam_data",type=bpy.types.Camera
+                                )
+    
+
 
 class LIST_OT_NewItem(bpy.types.Operator):
     """Add a new item to the list."""
@@ -125,7 +126,7 @@ class PT_ListExample(bpy.types.Panel):
         scene = context.scene
 
         row = layout.row()
-        row.template_list("MY_UL_List", "The_List", scene,
+        row.template_list("MY_Camera_UL_List", "The_List", scene,
                           "camera_list", scene, "list_index")
 
         row = layout.row()
@@ -144,10 +145,9 @@ class PT_ListExample(bpy.types.Panel):
             item = scene.camera_list[scene.list_index]
 
             row = layout.row()
-            row.prop(item, "name")
-            row.prop(item, "random_prop")
+            row.prop(item, "cam_data")
 
-class MY_UL_List(bpy.types.UIList):
+class MY_Camera_UL_List(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,
                 active_propname, index):
 
@@ -162,9 +162,11 @@ class MY_UL_List(bpy.types.UIList):
             layout.alignment = 'CENTER'
             layout.label(text="", icon = custom_icon)
 
+
+
 classes = [
     ListItem,
-    MY_UL_List,
+    MY_Camera_UL_List,
     LIST_OT_NewItem,
     LIST_OT_DeleteItem,
     LIST_OT_MoveItem,
@@ -182,6 +184,7 @@ def register():
     bpy.types.Scene.camera_list = CollectionProperty(type = ListItem)
     bpy.types.Scene.list_index = IntProperty(name = "Index for my_list",
                                              default = 0)
+    
 
 
 def unregister():
