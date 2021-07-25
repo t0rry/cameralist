@@ -1,7 +1,7 @@
 from typing import DefaultDict
 from original import init_props
 import bpy
-from bpy.props import StringProperty, IntProperty, CollectionProperty,EnumProperty,PointerProperty
+from bpy.props import StringProperty, IntProperty, CollectionProperty, PointerProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel
 
 
@@ -22,9 +22,14 @@ bl_info = {
 class ListItem(bpy.types.PropertyGroup):
     """Group of properties representing an item in the list."""
 
-    cam_data: PointerProperty(  name="cam_data",type=bpy.types.Camera
-                                )
     
+
+    name:PointerProperty(
+        name="camera_name(obj)",
+        type = bpy.types.Object,
+        description="this property's object data")
+
+
 
 
 class LIST_OT_NewItem(bpy.types.Operator):
@@ -35,7 +40,10 @@ class LIST_OT_NewItem(bpy.types.Operator):
 
     def execute(self, context):
         
-        context.scene.camera_list.add( )
+        camera_list = context.scene.camera_list.add()
+        active_obj = context.active_object
+        camera_list.name = active_obj
+            
 
 
         
@@ -126,7 +134,7 @@ class PT_ListExample(bpy.types.Panel):
         scene = context.scene
 
         row = layout.row()
-        row.template_list("MY_Camera_UL_List", "The_List", scene,
+        row.template_list("MY_UL_List", "The_List", scene,
                           "camera_list", scene, "list_index")
 
         row = layout.row()
@@ -145,28 +153,30 @@ class PT_ListExample(bpy.types.Panel):
             item = scene.camera_list[scene.list_index]
 
             row = layout.row()
-            row.prop(item, "cam_data")
+            row.prop(item, "name")
+            row.prop(item, "random_prop")
 
-class MY_Camera_UL_List(bpy.types.UIList):
+class MY_UL_List(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,
                 active_propname, index):
-
+        ob = data
+        psys = item
         # We could write some code to decide which icon to use here...
         custom_icon = 'RENDER_STILL'
 
         # Make sure your code supports all 3 layout types
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.label(text=item.name, icon = custom_icon)
+            row = layout.row(align=False)
+
+            row.prop(psys, "name", text="", emboss=True, icon_value=icon)
 
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="", icon = custom_icon)
 
-
-
 classes = [
     ListItem,
-    MY_Camera_UL_List,
+    MY_UL_List,
     LIST_OT_NewItem,
     LIST_OT_DeleteItem,
     LIST_OT_MoveItem,
@@ -184,7 +194,6 @@ def register():
     bpy.types.Scene.camera_list = CollectionProperty(type = ListItem)
     bpy.types.Scene.list_index = IntProperty(name = "Index for my_list",
                                              default = 0)
-    
 
 
 def unregister():
