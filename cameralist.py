@@ -8,7 +8,7 @@ from bpy.types import PropertyGroup, UIList, Operator, Panel
 bl_info = {
     "name": "CameraList",
     "author": "t0rry_",
-    "version": (0, 0 , 2),
+    "version": (0, 0 , 3),
     "blender": (2, 80, 0),
     "location": "3Dビューポート > Sidebar",
     "description": "BlenderのUIを制御するアドオン",
@@ -166,7 +166,7 @@ class MY_UL_List(bpy.types.UIList):
 
         # Make sure your code supports all 3 layout types
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            row = layout.row(align=False)
+            row = layout.row(align=True)
 
             row.prop(psys, "name", text="", emboss=True, icon_value=icon)
 
