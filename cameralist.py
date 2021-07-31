@@ -1,5 +1,3 @@
-from typing import DefaultDict
-from original import init_props
 import bpy
 from bpy.props import StringProperty, IntProperty, CollectionProperty, PointerProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel
@@ -8,7 +6,7 @@ from bpy.types import PropertyGroup, UIList, Operator, Panel
 bl_info = {
     "name": "CameraList",
     "author": "t0rry_",
-    "version": (0, 0 , 2),
+    "version": (0, 0 , 6),
     "blender": (2, 80, 0),
     "location": "3Dビューポート > Sidebar",
     "description": "BlenderのUIを制御するアドオン",
@@ -19,16 +17,21 @@ bl_info = {
     "category": "Tutorial"
 }
 
-class ListItem(bpy.types.PropertyGroup):
+class CamProperty(bpy.types.PropertyGroup):
     """Group of properties representing an item in the list."""
 
     
 
     name:PointerProperty(
-        name="camera_name(obj)",
-        type = bpy.types.Object,
-        description="this property's object data")
+        name="camera_name(cam)",
+        type = bpy.types.Camera,
+        description="this property's camera data")
+        
+    frame_start:IntProperty(
+         name = "Start Frame" ,default = 0)
 
+    frame_end:IntProperty(
+        name = "End Frame" , default = 100)
 
 
 
@@ -38,17 +41,18 @@ class LIST_OT_NewItem(bpy.types.Operator):
     bl_idname = "camera_list.new_item"
     bl_label = "Add a new item"
 
+    @classmethod
+    def poll(cls, context):
+        return context.active_object.type == 'CAMERA'
+
     def execute(self, context):
         
         camera_list = context.scene.camera_list.add()
-        active_obj = context.active_object
+        active_obj = context.active_object.data
         camera_list.name = active_obj
-            
-
-
         
-
         return{'FINISHED'}
+
 
 
 class LIST_OT_DeleteItem(bpy.types.Operator):
@@ -134,48 +138,52 @@ class PT_ListExample(bpy.types.Panel):
         scene = context.scene
 
         row = layout.row()
-        row.template_list("MY_UL_List", "The_List", scene,
+        row.template_list("MY_UL_List", "KOKO NAZO", scene,
                           "camera_list", scene, "list_index")
-
         row = layout.row()
-        row.operator('camera_list.new_item', text='NEW')
-        row.operator('camera_list.delete_item', text='REMOVE')
+        row.operator('camera_list.new_item', text='ADD')
+        row.operator('camera_list.delete_item', text='DALETE')
         row.operator('camera_list.move_item', text='UP').direction = 'UP'
         row.operator('camera_list.move_item', text='DOWN').direction = 'DOWN'
-        row.operator('camera_list.add_camera', text='ADD CAMERA')
+
+        row= layout.row()
+        
+        row.scale_y = 3
 
         layout.separator()
-
-        layout.label(text="WARNIG :elected camera object, show NEW button")
-        #add any Panel t0rry_
-
+ 
         if scene.list_index >= 0 and scene.camera_list:
             item = scene.camera_list[scene.list_index]
-
             row = layout.row()
-            row.prop(item, "name")
-            row.prop(item, "random_prop")
 
+            row.prop(item, "name") 
+            row = layout.row()
+            row.prop(item, "frame_start")
+            row.prop(item, "frame_end")
+            row.scale_y = 2
+        
+        row = layout.row()
+        row.operator('camera_list.add_camera', text='ADD CAMERA' ,icon='VIEW_CAMERA')
+        row.scale_y = 3
 class MY_UL_List(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,
                 active_propname, index):
-        ob = data
-        psys = item
+        object_data = item
         # We could write some code to decide which icon to use here...
         custom_icon = 'RENDER_STILL'
 
         # Make sure your code supports all 3 layout types
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            row = layout.row(align=False)
+            row = layout.row(align=True)
 
-            row.prop(psys, "name", text="", emboss=True, icon_value=icon)
+            row.prop(object_data, "name", text="Cam", emboss=False, icon_value=icon)
 
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="", icon = custom_icon)
 
 classes = [
-    ListItem,
+    CamProperty,
     MY_UL_List,
     LIST_OT_NewItem,
     LIST_OT_DeleteItem,
@@ -188,10 +196,10 @@ def register():
     for c in classes:
         bpy.utils.register_class(c)
     
-    init_props()
-    print("Register of CameraList Addon")
+    
+    
 
-    bpy.types.Scene.camera_list = CollectionProperty(type = ListItem)
+    bpy.types.Scene.camera_list = CollectionProperty(type = CamProperty)
     bpy.types.Scene.list_index = IntProperty(name = "Index for my_list",
                                              default = 0)
 
@@ -200,6 +208,7 @@ def unregister():
 
     del bpy.types.Scene.camera_list
     del bpy.types.Scene.list_index
+
 
     for c in classes:
         bpy.utils.unregister_class(c)
