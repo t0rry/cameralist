@@ -17,10 +17,10 @@ bl_info = {
     "category": "Tutorial"
 }
 
+
+
 class CamProperty(bpy.types.PropertyGroup):
     """Group of properties representing an item in the list."""
-
-    
 
     name:PointerProperty(
         name="camera_name(cam)",
@@ -33,7 +33,46 @@ class CamProperty(bpy.types.PropertyGroup):
     frame_end:IntProperty(
         name = "End Frame" , default = 100)
 
+    cam_name:StringProperty(
+        name="camera_name(name)"
+    )
 
+    exchange_data:PointerProperty(
+        name="camera_name(cam)_exchange",
+        type = bpy.types.Camera,
+        description="this property's exchange camera data")
+
+
+class CML_OT_ChangeItem(bpy.types.Operator):
+    """Exchange to CameraData."""
+
+    bl_idname = "camera_list.change_item"
+    bl_label = "Change Camera Object"
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.camera_list[context.scene.list_index].exchange_data
+
+
+    def execute(self, context):
+        camera_list = context.scene.camera_list
+        index = context.scene.list_index
+        exchange_data = context.scene.camera_list[index].exchange_data.id_data
+        exchange_name = context.scene.camera_list[index].exchange_data.name
+
+        camera_list[index].name = None
+        camera_list[index].name = exchange_data
+
+        camera_list[index].cam_name = ""
+        camera_list[index].cam_name = exchange_name
+
+        #camera_list[index].cam_name = camera_list[index].exchange_data.id_data
+
+
+
+
+        return{'FINISHED'}
+        
 
 class LIST_OT_NewItem(bpy.types.Operator):
     """Add a new item to the list."""
@@ -49,7 +88,9 @@ class LIST_OT_NewItem(bpy.types.Operator):
         
         camera_list = context.scene.camera_list.add()
         active_obj = context.active_object.data
+        active_obj_name = bpy.context.active_object.name
         camera_list.name = active_obj
+        camera_list.cam_name = active_obj_name
         
         return{'FINISHED'}
 
@@ -107,7 +148,7 @@ class LIST_OT_MoveItem(bpy.types.Operator):
 
         return{'FINISHED'}
 
-class LIST_OT_AddCamera(bpy.types.Operator):
+class CML_OT_AddCamera(bpy.types.Operator):
     """Add Camera Object"""
     bl_idname = "camera_list.add_camera"
     bl_label = "Add new camera object"
@@ -118,7 +159,6 @@ class LIST_OT_AddCamera(bpy.types.Operator):
         print("add camera")
         
         return{'FINISHED'}
-
 
 class PT_ListExample(bpy.types.Panel):
     """Demo panel for UI list Tutorial."""
@@ -138,33 +178,39 @@ class PT_ListExample(bpy.types.Panel):
         scene = context.scene
 
         row = layout.row()
-        row.template_list("MY_UL_List", "KOKO NAZO", scene,
+        row.template_list("MY_UL_List", "camera_list_id", scene,
                           "camera_list", scene, "list_index")
+
         row = layout.row()
+
         row.operator('camera_list.new_item', text='ADD')
         row.operator('camera_list.delete_item', text='DALETE')
         row.operator('camera_list.move_item', text='UP').direction = 'UP'
         row.operator('camera_list.move_item', text='DOWN').direction = 'DOWN'
 
-        row= layout.row()
-        
+        row = layout.row()
+        row.operator('camera_list.add_camera', text='ADD CAMERA' ,icon='VIEW_CAMERA')
         row.scale_y = 3
+
+        row= layout.row()
+        row.scale_y = 5
+
+
 
         layout.separator()
  
         if scene.list_index >= 0 and scene.camera_list:
             item = scene.camera_list[scene.list_index]
-            row = layout.row()
-
-            row.prop(item, "name") 
+    
             row = layout.row()
             row.prop(item, "frame_start")
             row.prop(item, "frame_end")
             row.scale_y = 2
-        
-        row = layout.row()
-        row.operator('camera_list.add_camera', text='ADD CAMERA' ,icon='VIEW_CAMERA')
-        row.scale_y = 3
+
+            row = layout.row()
+            row.prop(item,"exchange_data") 
+            row.operator('camera_list.change_item', text='exchange data')
+
 class MY_UL_List(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,
                 active_propname, index):
@@ -175,21 +221,22 @@ class MY_UL_List(bpy.types.UIList):
         # Make sure your code supports all 3 layout types
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
-
-            row.prop(object_data, "name", text="Cam", emboss=False, icon_value=icon)
+            
+            row.prop(object_data, "cam_name" , text="Cam" ,icon_value=icon)
 
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="", icon = custom_icon)
 
 classes = [
+    CML_OT_ChangeItem,
     CamProperty,
     MY_UL_List,
     LIST_OT_NewItem,
     LIST_OT_DeleteItem,
     LIST_OT_MoveItem,
     PT_ListExample,
-    LIST_OT_AddCamera,
+    CML_OT_AddCamera,
 ]
 
 def register():
@@ -198,16 +245,20 @@ def register():
     
     
     
-
+    bpy.types.Scene.ex_camera_list = PointerProperty(name = "ex_camera_name(cam)",
+                                            type=bpy.types.Camera)
     bpy.types.Scene.camera_list = CollectionProperty(type = CamProperty)
     bpy.types.Scene.list_index = IntProperty(name = "Index for my_list",
                                              default = 0)
+
 
 
 def unregister():
 
     del bpy.types.Scene.camera_list
     del bpy.types.Scene.list_index
+    del bpy.types.Scene.ex_camera_list
+
 
 
     for c in classes:
