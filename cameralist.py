@@ -9,7 +9,7 @@ bl_info = {
     "version": (0, 0 , 6),
     "blender": (2, 80, 0),
     "location": "3Dビューポート > Sidebar",
-    "description": "BlenderのUIを制御するアドオン",
+    "description": "Camera List And Rendering Support",
     "warning": "",
     "support": "TESTING",
     "wiki_url": "",
@@ -42,6 +42,12 @@ class CamProperty(bpy.types.PropertyGroup):
         type = bpy.types.Camera,
         description="this property's exchange camera data")
 
+    object_data:PointerProperty(
+        name="camera_data(obj)",
+        type = bpy.types.Object,
+        description = "this property's camera_data(obj)"
+    )
+
 
 class CML_OT_ChangeItem(bpy.types.Operator):
     """Exchange to CameraData."""
@@ -63,7 +69,7 @@ class CML_OT_ChangeItem(bpy.types.Operator):
         camera_list[index].name = None
         camera_list[index].name = exchange_data
 
-        camera_list[index].cam_name = ""
+        camera_list[index].cam_name = "cam_name(error)"
         camera_list[index].cam_name = exchange_name
 
         #camera_list[index].cam_name = camera_list[index].exchange_data.id_data
@@ -71,8 +77,24 @@ class CML_OT_ChangeItem(bpy.types.Operator):
 
 
 
-        return{'FINISHED'}
         
+        
+class CML_OT_ViewCamera(bpy.types.Operator):
+    """"Change to register Camera and View to Camera_List CameraView"""
+
+    bl_idname = "camera_list.view_camera"
+    bl_label = "View Camera Object"
+
+    def execute(self, context):
+        camera_list = context.scene.camera_list
+        index = context.scene.list_index
+
+        context.scene.camera = None
+        context.scene.camera = context.scene.camera_list[index].object_data
+
+        bpy.ops.view3d.object_as_camera()
+
+        return{'FINISHED'}
 
 class LIST_OT_NewItem(bpy.types.Operator):
     """Add a new item to the list."""
@@ -80,17 +102,23 @@ class LIST_OT_NewItem(bpy.types.Operator):
     bl_idname = "camera_list.new_item"
     bl_label = "Add a new item"
 
-    @classmethod
-    def poll(cls, context):
-        return context.active_object.type == 'CAMERA'
 
     def execute(self, context):
         
-        camera_list = context.scene.camera_list.add()
-        active_obj = context.active_object.data
-        active_obj_name = bpy.context.active_object.name
-        camera_list.name = active_obj
-        camera_list.cam_name = active_obj_name
+        if context.active_object.type == "CAMERA":
+
+            camera_list = context.scene.camera_list.add()
+
+            active_obj = context.active_object.data
+            active_obj_name = context.active_object.name
+
+            camera_list.name = active_obj
+            camera_list.cam_name = active_obj_name
+
+        else:
+            self.report({'ERROR'},"select camera obj")
+        
+
         
         return{'FINISHED'}
 
@@ -197,19 +225,20 @@ class PT_ListExample(bpy.types.Panel):
 
 
 
+
         layout.separator()
  
         if scene.list_index >= 0 and scene.camera_list:
             item = scene.camera_list[scene.list_index]
-    
-            row = layout.row()
-            row.prop(item, "frame_start")
-            row.prop(item, "frame_end")
-            row.scale_y = 2
 
             row = layout.row()
-            row.prop(item,"exchange_data") 
+
+            row.prop(item,"exchange_data",text = "ExchangeData") 
             row.operator('camera_list.change_item', text='exchange data')
+            
+            row = layout.row()
+
+            row.operator("camera_list.view_camera", text = "camera_view",icon ="CONSTRAINT")
 
 class MY_UL_List(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,
@@ -222,7 +251,16 @@ class MY_UL_List(bpy.types.UIList):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
             
-            row.prop(object_data, "cam_name" , text="Cam" ,icon_value=icon)
+            item = context.scene.camera_list[context.scene.list_index]
+
+            
+
+            layout.enabled= False
+            row.prop(object_data, "name")
+            
+            layout.enabled= True
+            row.prop(item, "frame_start")
+            row.prop(item, "frame_end")
 
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
@@ -230,6 +268,7 @@ class MY_UL_List(bpy.types.UIList):
 
 classes = [
     CML_OT_ChangeItem,
+    CML_OT_ViewCamera,
     CamProperty,
     MY_UL_List,
     LIST_OT_NewItem,
