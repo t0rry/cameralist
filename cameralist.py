@@ -1,20 +1,18 @@
 import bpy
 from bpy.props import StringProperty, IntProperty, CollectionProperty, PointerProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel
-
-
 bl_info = {
     "name": "CameraList",
     "author": "t0rry_",
-    "version": (0, 0 , 6),
+    "version": (0, 9 , 0),
     "blender": (2, 80, 0),
-    "location": "3Dビューポート > Sidebar",
-    "description": "Camera List And Rendering Support",
+    "location": "3DViewPort > Sidebar > CameraList",
+    "description": "Camera List And Rendering Support(rendering support is 'DEVELOPING')",
     "warning": "",
     "support": "TESTING",
     "wiki_url": "",
     "tracker_url": "",
-    "category": "Tutorial"
+    "category": "CAMERA"
 }
 
 class CamProperty(bpy.types.PropertyGroup):
@@ -30,6 +28,10 @@ class CamProperty(bpy.types.PropertyGroup):
 
     frame_end:IntProperty(
         name = "End Frame" , default = 100)
+
+    render_name:StringProperty(
+        name ="rendering image name"
+    )
 
     cam_name:StringProperty(
         name="camera_name(name)"
@@ -122,6 +124,9 @@ class LIST_OT_NewItem(bpy.types.Operator):
             #Add Property of object_data status:
             camera_list[index].object_data = active_ob
 
+            #Add Property of render_name status:
+            camera_list[index].render_name = active_ob.name
+
         else:
             self.report({'ERROR'},"{ERROR!}select camera obj")
         
@@ -192,13 +197,47 @@ class CML_OT_AddCamera(bpy.types.Operator):
         
         return{'FINISHED'}
 
-class PT_ListExample(bpy.types.Panel):
+class CML_OT_RenderingRequest(bpy.types.Operator):
+    """Rendering in order of Camera_list"""
+    bl_idname = "camera_list.rendering_request"
+    bl_label = "Rendering in order of Camera_list"
+
+    def execute(self, context):
+        #01. camera_list , index , number of list
+        camera_list = context.scene.camera_list
+        count = len(camera_list)
+
+        #02. repetition to rendering
+
+        for num in range(count):
+            #1. scene camera = none
+            context.scene.camera = None
+
+            #2. cam_list to scene camera
+            bpy.context.view_layer.objects.active = camera_list[num].object_data
+            context.scene.camera = camera_list[num].object_data
+
+            #3. scene frame 
+            cml_f_start = camera_list[num].frame_start
+            cml_f_end = camera_list[num].frame_end
+
+            bpy.context.scene.frame_start = cml_f_start
+            bpy.context.scene.frame_end = cml_f_end
+
+            #4. rendering
+
+            bpy.ops.render.render(animation = True)
+            bpy.data.images['Render Result'].save_render(filepath = os.environ['HOMEPATH'] + '/' + camera_list[num].cam_name + 'png')
+        return{'FINISHED'}
+
+class PT_CML_Panel(bpy.types.Panel):
     """Demo panel for UI list Tutorial."""
 
     bl_label = "Camera List"
-    bl_idname = "SCENE_PT_LIST_DEMO"
+    bl_idname = "CML_PT_LIST"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
+    bl_category = "CameraList"
     bl_context = "objectmode"
 
     def draw_header(self, context):
@@ -227,9 +266,6 @@ class PT_ListExample(bpy.types.Panel):
         row= layout.row()
         row.scale_y = 5
 
-
-
-
         layout.separator()
  
         if scene.list_index >= 0 and scene.camera_list:
@@ -242,11 +278,21 @@ class PT_ListExample(bpy.types.Panel):
             row.prop(item,"exchange_data",text = "ExchangeData") 
             row.operator('camera_list.change_item', text='exchange data')
             '''
-
             row = layout.row()
             row.label(text= "NOTE change to scene camera")
+            
             row = layout.row()
-            row.operator("camera_list.view_camera", text = "camera_view",icon ="CONSTRAINT")
+            row.operator('camera_list.view_camera', text='View_Camera' ,icon='VIEW_CAMERA')
+
+            layout.separator()
+            box = layout.box()
+
+            #file manager + render req
+            rd = context.scene.render
+            box.label(text = "This ops is development ")
+            box.prop(rd, "filepath", text="")
+            box.prop(item, "cam_name")
+            box.operator("camera_list.rendering_request", text = "renderinig req",icon ="RESTRICT_VIEW_OFF")
 
 class MY_UL_List(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,
@@ -275,13 +321,14 @@ class MY_UL_List(bpy.types.UIList):
 
 classes = [
     #CML_OT_ChangeItem,
+    CML_OT_RenderingRequest,
     CML_OT_ViewCamera,
     CamProperty,
     MY_UL_List,
     LIST_OT_NewItem,
     LIST_OT_DeleteItem,
     LIST_OT_MoveItem,
-    PT_ListExample,
+    PT_CML_Panel,
     CML_OT_AddCamera,
 ]
 
