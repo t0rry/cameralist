@@ -17,8 +17,6 @@ bl_info = {
     "category": "Tutorial"
 }
 
-
-
 class CamProperty(bpy.types.PropertyGroup):
     """Group of properties representing an item in the list."""
 
@@ -81,14 +79,18 @@ class CML_OT_ViewCamera(bpy.types.Operator):
     bl_label = "View Camera Object"
 
     def execute(self, context):
+        #01. Reset to Scene Camera
         context.scene.camera = None
+
+        #02. camera_list , index 
         camera_list = context.scene.camera_list
         index = context.scene.list_index
 
-
+        #03. processing "change scene camera" and "view to scene camera"
+        bpy.context.view_layer.objects.active = camera_list[index].object_data
         context.scene.camera = camera_list[index].object_data
-
         bpy.ops.view3d.object_as_camera()
+        bpy.context.view_layer.objects.active = None
 
         return{'FINISHED'}
 
@@ -242,7 +244,8 @@ class PT_ListExample(bpy.types.Panel):
             '''
 
             row = layout.row()
-
+            row.label(text= "NOTE change to scene camera")
+            row = layout.row()
             row.operator("camera_list.view_camera", text = "camera_view",icon ="CONSTRAINT")
 
 class MY_UL_List(bpy.types.UIList):
@@ -257,10 +260,11 @@ class MY_UL_List(bpy.types.UIList):
             row = layout.row(align=True)
             item = context.scene.camera_list[index]
 
+            row.scale_x = 3
             layout.enabled= False
             row.prop(item, "cam_name")
             #row.label(text = item.cam_name)
-
+            row.scale_x = 1
             layout.enabled= True
             row.prop(item, "frame_start")
             row.prop(item, "frame_end")
