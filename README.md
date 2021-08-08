@@ -2,6 +2,8 @@
 
 ![AnyConv com__camera_list_top](https://user-images.githubusercontent.com/78343605/127999400-e8033dd9-3b33-403d-a3ab-93c3e80dded1.png)
 
+リリース歴はこちら
+https://github.com/t0rry/cameralist/releases
 
 このアドオンはBlender2.8以降のバージョンを想定して作成されています。
 
