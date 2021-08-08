@@ -1,6 +1,9 @@
 import bpy
-from bpy.props import StringProperty, IntProperty, CollectionProperty, PointerProperty
+from bpy.props import StringProperty, IntProperty, CollectionProperty, PointerProperty , EnumProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel
+
+import os 
+
 bl_info = {
     "name": "CameraList",
     "author": "t0rry_",
@@ -18,11 +21,21 @@ bl_info = {
 class CamProperty(bpy.types.PropertyGroup):
     """Group of properties representing an item in the list."""
 
-    name:PointerProperty(
-        name="camera_name(cam)",
+    name:StringProperty(
+        name="camera_name(name)"  )
+
+
+    cam:PointerProperty(
+        name="camera_data(cam)",
         type = bpy.types.Camera,
         description="this property's camera data")
-        
+
+    ob:PointerProperty(
+        name="camera_data(obj)",
+        type = bpy.types.Object,
+        description = "this property's camera_data(obj)"
+    )
+
     frame_start:IntProperty(
          name = "Start Frame" ,default = 0)
 
@@ -33,20 +46,19 @@ class CamProperty(bpy.types.PropertyGroup):
         name ="rendering image name"
     )
 
-    cam_name:StringProperty(
-        name="camera_name(name)"
-    )
-
     exchange_data:PointerProperty(
         name="camera_name(cam)_exchange",
         type = bpy.types.Camera,
         description="this property's exchange camera data")
 
-    object_data:PointerProperty(
-        name="camera_data(obj)",
-        type = bpy.types.Object,
-        description = "this property's camera_data(obj)"
-    )
+
+class LIST_OT_UpdateItem(bpy.types.Operator):
+    def execute(seld, context):
+        camera_list=context.scene.camera_list
+        index = context.scene.list_index
+
+        camera_list[index].ob.data = camera_list[index].cam
+        camera_list[index].name = camera_list[index].ob.name
 
 #i'll implement it someday.......... :) exchange cam data
 '''class CML_OT_ChangeItem(bpy.types.Operator):
@@ -74,27 +86,6 @@ class CamProperty(bpy.types.PropertyGroup):
 
         #camera_list[index].cam_name = camera_list[index].exchange_data.id_data
 '''     
-class CML_OT_ViewCamera(bpy.types.Operator):
-    """"Change to register Camera and View to Camera_List CameraView"""
-
-    bl_idname = "camera_list.view_camera"
-    bl_label = "View Camera Object"
-
-    def execute(self, context):
-        #01. Reset to Scene Camera
-        context.scene.camera = None
-
-        #02. camera_list , index 
-        camera_list = context.scene.camera_list
-        index = context.scene.list_index
-
-        #03. processing "change scene camera" and "view to scene camera"
-        bpy.context.view_layer.objects.active = camera_list[index].object_data
-        context.scene.camera = camera_list[index].object_data
-        bpy.ops.view3d.object_as_camera()
-        bpy.context.view_layer.objects.active = None
-
-        return{'FINISHED'}
 
 class LIST_OT_NewItem(bpy.types.Operator):
     """Add a new item to the list."""
@@ -108,6 +99,8 @@ class LIST_OT_NewItem(bpy.types.Operator):
         if context.active_object.type == "CAMERA":
             
             #add item of camera_list 
+            context.scene.list_index = -1
+
             context.scene.camera_list.add()
 
             #definition cam_list and index 
@@ -116,13 +109,13 @@ class LIST_OT_NewItem(bpy.types.Operator):
             active_ob =context.active_object
 
             #Add Property of name status:
-            camera_list[index].name =  active_ob.data
-            
+            camera_list[index].name =  active_ob.name
+         
             #Add Property of cam_name status:
-            camera_list[index].cam_name = active_ob.name
+            camera_list[index].cam= active_ob.data
 
             #Add Property of object_data status:
-            camera_list[index].object_data = active_ob
+            camera_list[index].ob = active_ob
 
             #Add Property of render_name status:
             camera_list[index].render_name = active_ob.name
@@ -193,8 +186,29 @@ class CML_OT_AddCamera(bpy.types.Operator):
     def execute(self, context):
         bpy.ops.object.camera_add(rotation = (1.5708 , 0 , 0))
         #x rotation = 90  = 1.5708 ???? wakaran 
-        print("add camera")
         
+        return{'FINISHED'}
+
+class CML_OT_ViewCamera(bpy.types.Operator):
+    """"Change to register Camera and View to Camera_List CameraView"""
+
+    bl_idname = "camera_list.view_camera"
+    bl_label = "View Camera Object"
+
+    def execute(self, context):
+        #01. Reset to Scene Camera
+        context.scene.camera = None
+
+        #02. camera_list , index 
+        camera_list = context.scene.camera_list
+        index = context.scene.list_index
+
+        #03. processing "change scene camera" and "view to scene camera"
+        bpy.context.view_layer.objects.active = camera_list[index].ob
+        context.scene.camera = camera_list[index].ob
+        bpy.ops.view3d.object_as_camera()
+        bpy.context.view_layer.objects.active = None
+
         return{'FINISHED'}
 
 class CML_OT_RenderingRequest(bpy.types.Operator):
@@ -214,8 +228,8 @@ class CML_OT_RenderingRequest(bpy.types.Operator):
             context.scene.camera = None
 
             #2. cam_list to scene camera
-            bpy.context.view_layer.objects.active = camera_list[num].object_data
-            context.scene.camera = camera_list[num].object_data
+            bpy.context.view_layer.objects.active = camera_list[num].ob
+            context.scene.camera = camera_list[num].ob
 
             #3. scene frame 
             cml_f_start = camera_list[num].frame_start
@@ -306,10 +320,13 @@ class MY_UL_List(bpy.types.UIList):
             row = layout.row(align=True)
             item = context.scene.camera_list[index]
 
+            row.scale_x = 0.2
+            row.label(text = str(index))
+
             row.scale_x = 3
-            layout.enabled= False
-            row.prop(item, "cam_name")
+            row.prop(item, "cam",icon_only = True)
             #row.label(text = item.cam_name)
+
             row.scale_x = 1
             layout.enabled= True
             row.prop(item, "frame_start")
@@ -337,6 +354,7 @@ def register():
         bpy.utils.register_class(c)
     
     bpy.types.Scene.camera_list = CollectionProperty(type = CamProperty)
+
     bpy.types.Scene.list_index = IntProperty(name = "Index for my_list",
                                              default = 0)
 
