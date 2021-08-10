@@ -22,12 +22,5 @@ https://github.com/t0rry/cameralist/releases
 
 https://youtu.be/v2_ier6Iheo
 
-【現在発生している不具合】
-
-１．特定に操作を行うとリストにアイテムが正しく登録されない
-
-２．カメラリスト内のアイテムとカメラのオブジェクト名の同期が行えない
-
-３．レンダリング機能全般
 
 
