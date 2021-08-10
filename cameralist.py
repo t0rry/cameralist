@@ -7,7 +7,7 @@ import os
 bl_info = {
     "name": "CameraList",
     "author": "t0rry_",
-    "version": (0, 9 , 0),
+    "version": (0, 9 , 1),
     "blender": (2, 80, 0),
     "location": "3DViewPort > Sidebar > CameraList",
     "description": "Camera List And Rendering Support(rendering support is 'DEVELOPING')",
@@ -18,22 +18,42 @@ bl_info = {
     "category": "CAMERA"
 }
 
+
+def update_ob(self,context,):
+    index = context.scene.list_index
+    camera_list = context.scene.camera_list[index]
+
+    #update name
+
+    
+
+    if camera_list.ob.type == "CAMERA":
+        #update cam ob
+        camera_list.name = camera_list.ob.name
+        camera_list.cam = camera_list.ob.data
+
+    # if selected other camera object
+    else:
+        camera_list.ob= None
+
+    return None
+    
 class CamProperty(bpy.types.PropertyGroup):
-    """Group of properties representing an item in the list."""
+    """Camera List Property Group"""
 
     name:StringProperty(
-        name="camera_name(name)"  )
-
+        name = "camera_name(name)"  )
 
     cam:PointerProperty(
         name="camera_data(cam)",
         type = bpy.types.Camera,
-        description="this property's camera data")
+        description="camera data")
 
     ob:PointerProperty(
         name="camera_data(obj)",
         type = bpy.types.Object,
-        description = "this property's camera_data(obj)"
+        description = "camera_data(obj)",
+        update = update_ob
     )
 
     frame_start:IntProperty(
@@ -45,47 +65,6 @@ class CamProperty(bpy.types.PropertyGroup):
     render_name:StringProperty(
         name ="rendering image name"
     )
-
-    exchange_data:PointerProperty(
-        name="camera_name(cam)_exchange",
-        type = bpy.types.Camera,
-        description="this property's exchange camera data")
-
-
-class LIST_OT_UpdateItem(bpy.types.Operator):
-    def execute(seld, context):
-        camera_list=context.scene.camera_list
-        index = context.scene.list_index
-
-        camera_list[index].ob.data = camera_list[index].cam
-        camera_list[index].name = camera_list[index].ob.name
-
-#i'll implement it someday.......... :) exchange cam data
-'''class CML_OT_ChangeItem(bpy.types.Operator):
-    """Exchange to CameraData."""
-
-    bl_idname = "camera_list.change_item"
-    bl_label = "Change Camera Object"
-
-    @classmethod
-    def poll(cls, context):
-        return context.scene.camera_list[context.scene.list_index].exchange_data
-
-
-    def execute(self, context):
-        camera_list = context.scene.camera_list
-        index = context.scene.list_index
-        exchange_data = context.scene.camera_list[index].exchange_data.id_data
-        exchange_name = context.scene.camera_list[index].exchange_data.name
-
-        camera_list[index].name = None
-        camera_list[index].name = exchange_data
-
-        camera_list[index].cam_name = "cam_name(error)"
-        camera_list[index].cam_name = exchange_name
-
-        #camera_list[index].cam_name = camera_list[index].exchange_data.id_data
-'''     
 
 class LIST_OT_NewItem(bpy.types.Operator):
     """Add a new item to the list."""
@@ -108,21 +87,13 @@ class LIST_OT_NewItem(bpy.types.Operator):
             camera_list = context.scene.camera_list
             active_ob =context.active_object
 
-            #Add Property of name status:
-            camera_list[index].name =  active_ob.name
-         
-            #Add Property of cam_name status:
-            camera_list[index].cam= active_ob.data
-
             #Add Property of object_data status:
             camera_list[index].ob = active_ob
 
-            #Add Property of render_name status:
-            camera_list[index].render_name = active_ob.name
+            #other property is "update_ob"fx (1.update ob 2.update other property)
 
         else:
             self.report({'ERROR'},"{ERROR!}select camera obj")
-        
 
         
         return{'FINISHED'}
@@ -209,6 +180,28 @@ class CML_OT_ViewCamera(bpy.types.Operator):
         bpy.ops.view3d.object_as_camera()
         bpy.context.view_layer.objects.active = None
 
+
+
+        return{'FINISHED'}
+
+class CML_OT_SelectCamera(bpy.types.Operator):
+    """"Selected CameraList Item Camera"""
+
+    bl_idname = "camera_list.select_camera"
+    bl_label = "Select Camera Object"
+
+    def execute(self, context):
+
+        ##01. camera_list , index 
+        index = context.scene.list_index
+        camera_list = context.scene.camera_list[index]
+
+        ##02 select camera
+        bpy.data.objects[camera_list.name].select_set(True)
+
+        ##03 pop
+        self.report({'INFO'},"{Success!!!}Selected List Item (Item Name =" + camera_list.name + ")")
+
         return{'FINISHED'}
 
 class CML_OT_RenderingRequest(bpy.types.Operator):
@@ -252,7 +245,7 @@ class PT_CML_Panel(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "CameraList"
-    bl_context = "objectmode"
+    #bl_context = "objectmode"
 
     def draw_header(self, context):
         layout = self.layout
@@ -298,6 +291,9 @@ class PT_CML_Panel(bpy.types.Panel):
             row = layout.row()
             row.operator('camera_list.view_camera', text='View_Camera' ,icon='VIEW_CAMERA')
 
+            row.operator('camera_list.select_camera', text='Selected Item' ,icon='RESTRICT_SELECT_OFF')
+            
+
             layout.separator()
             box = layout.box()
 
@@ -305,7 +301,7 @@ class PT_CML_Panel(bpy.types.Panel):
             rd = context.scene.render
             box.label(text = "This ops is development ")
             box.prop(rd, "filepath", text="")
-            box.prop(item, "cam_name")
+            box.prop(item, "name")
             box.operator("camera_list.rendering_request", text = "renderinig req",icon ="RESTRICT_VIEW_OFF")
 
 class MY_UL_List(bpy.types.UIList):
@@ -324,7 +320,7 @@ class MY_UL_List(bpy.types.UIList):
             row.label(text = str(index))
 
             row.scale_x = 3
-            row.prop(item, "cam",icon_only = True)
+            row.prop(item, "ob",icon_only = True)
             #row.label(text = item.cam_name)
 
             row.scale_x = 1
@@ -337,9 +333,9 @@ class MY_UL_List(bpy.types.UIList):
             layout.label(text="", icon = custom_icon)
 
 classes = [
-    #CML_OT_ChangeItem,
     CML_OT_RenderingRequest,
     CML_OT_ViewCamera,
+    CML_OT_SelectCamera,
     CamProperty,
     MY_UL_List,
     LIST_OT_NewItem,
@@ -354,7 +350,6 @@ def register():
         bpy.utils.register_class(c)
     
     bpy.types.Scene.camera_list = CollectionProperty(type = CamProperty)
-
     bpy.types.Scene.list_index = IntProperty(name = "Index for my_list",
                                              default = 0)
 
