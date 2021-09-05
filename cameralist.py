@@ -4,10 +4,14 @@ from bpy.types import PropertyGroup, UIList, Operator, Panel
 
 import os 
 
+#need for Calculation view origin point 
+import numpy as np
+
+
 bl_info = {
     "name": "CameraList",
     "author": "t0rry_",
-    "version": (0, 9 , 1),
+    "version": (0, 9 , 2),
     "blender": (2, 80, 0),
     "location": "3DViewPort > Sidebar > CameraList",
     "description": "Camera List And Rendering Support(rendering support is 'DEVELOPING')",
@@ -17,7 +21,6 @@ bl_info = {
     "tracker_url": "",
     "category": "CAMERA"
 }
-
 
 def update_ob(self,context,):
     index = context.scene.list_index
@@ -167,20 +170,22 @@ class CML_OT_ViewCamera(bpy.types.Operator):
     bl_label = "View Camera Object"
 
     def execute(self, context):
+
+        #00. Mode,camera_list,index
+        index = context.scene.list_index
+        camera_list = context.scene.camera_list[index]
+
         #01. Reset to Scene Camera
         context.scene.camera = None
 
-        #02. camera_list , index 
-        camera_list = context.scene.camera_list
-        index = context.scene.list_index
-
+        
         #03. processing "change scene camera" and "view to scene camera"
-        bpy.context.view_layer.objects.active = camera_list[index].ob
-        context.scene.camera = camera_list[index].ob
+        #bpy.context.view_layer.objects.active = camera_list[index].ob
+        context.view_layer.objects.active = camera_list.ob
+        context.scene.camera = camera_list.ob
         bpy.ops.view3d.object_as_camera()
-        bpy.context.view_layer.objects.active = None
-
-
+        context.view_layer.objects.active = None
+            
 
         return{'FINISHED'}
 
@@ -204,6 +209,127 @@ class CML_OT_SelectCamera(bpy.types.Operator):
 
         return{'FINISHED'}
 
+class CML_OT_Debug_Button(bpy.types.Operator):
+    """Debug Button Developing """
+    bl_idname = "camera_list.debug"
+    bl_label = "Debug"
+
+    def execute(self , context):
+
+        #debug to screen data    
+        area = context.space_data.region_3d
+        print("distance")
+        print(area.view_distance)
+        print("view_location")
+        print(area.view_location)
+        print("view_rotation")
+        print(area.view_rotation)
+        print("view_perspective")
+        #area.view_location.x =5
+        #area.view_location.y =-4
+        #area.view_location.z =5
+        print(area.view_perspective)
+
+        #debug to camera_view
+        index = context.scene.list_index
+        camera_list =context.scene.camera_list[index]
+
+        #call to debug end
+        print("DEBUG END")
+
+        return{'FINISHED'}
+
+class CML_OT_ViewCoordinate(bpy.types.Operator):
+    """Calculation to View Coordinate """
+    bl_idname = "camera_list.view_coordinate"
+    bl_label = "view coordinate"
+
+    def execute(self,context):
+        #00 camera_list,index
+        index = context.scene.list_index
+        camera_list =context.scene.camera_list[index]
+
+        #01 get camera's locations(x,y,z)
+        original_location = camera_list.ob.location 
+        
+
+        #02 get camera's rotations(euler)
+        original_angle_x  = np.rad2deg(camera_list.ob.rotation_euler.x)
+        original_angle_z  = np.rad2deg(camera_list.ob.rotation_euler.z)
+
+        #02 -1 calculate sinΘ theta
+
+
+        #03 get camera's focus distance
+        original_view_distance = camera_list.ob.data.dof.focus_distance
+
+
+        #04 calculate cosine data cosΘ , cosφ
+        #-1 cosΘ theta (arc_degree)
+        """
+        i_count = 1
+        if original_angle_x > 0:
+
+            while original_angle_x > 360:
+                original_angle_x = original_angle_x - 360
+                i_count += i_count
+            
+            thete = original_angle_x
+            thete_count = 1
+
+            while thete > 90:
+                thete -= thete -90
+                thete_count += thete_count
+
+
+            sin_theta = ( 180 - original_angle_x) + (360 * (i_count - 1) )
+            cos_theta = ((90 * i_count) - sin_theta ) + (360 * (i_count - 1) )
+
+        else:
+            while original_angle_x < -90:
+                print(original_angle_x)
+                original_angle_x = original_angle_x + 90
+                i_count += i_count
+            sin_theta = ( 180 - original_angle_x) + (-90 * (i_count - 1) )
+            cos_theta = ((-90 * i_count) - sin_theta ) + (-90 * (i_count - 1) )
+
+        #-2 cosφ phi(arc_degree)
+        i_count2 = 1
+        if original_angle_z > 0:
+
+            while original_angle_z > 90:
+                print(original_angle_z)
+                original_angle_z = original_angle_z - 90
+                i_count2 += i_count2
+            sin_phi = original_angle_z + (90 * (i_count2 - 1) )
+            cos_phi =   ((90 * i_count2) - original_angle_z) + (90 * (i_count2 - 1) ) 
+
+        else:
+            while original_angle_z < -90:
+                print(original_angle_z)
+                original_angle_z = original_angle_z + 90
+                i_count2 += i_count2
+            sin_phi = original_angle_z + (-90 * (i_count2 - 1) )
+            cos_phi =  ((-90 * i_count2) - original_angle_z) + (-90 * (i_count2 - 1) ) 
+        """
+
+        newPosition = np.empty([1,3], dtype=np.float64)
+        newPosition[:,0] = original_view_distance * np.sin(np.radians(original_angle_x)) * np.cos(np.radians(original_angle_z ))
+        newPosition[:,1] = original_view_distance * np.sin(np.radians(original_angle_x)) * np.sin(np.radians(original_angle_z ))
+        newPosition[:,2] = original_view_distance * np.cos(np.radians(original_angle_x))
+        print("xyz は" + str(newPosition))
+
+
+
+              
+        #calculate view location
+        context.space_data.region_3d.view_location.x = newPosition[:,0] + original_location.x
+        context.space_data.region_3d.view_location.y = newPosition[:,1] + original_location.y
+        context.space_data.region_3d.view_location.z = newPosition[:,2] + original_location.z
+        
+
+        return{'FINISHED'}
+        
 class CML_OT_RenderingRequest(bpy.types.Operator):
     """Rendering in order of Camera_list"""
     bl_idname = "camera_list.rendering_request"
@@ -270,8 +396,12 @@ class PT_CML_Panel(bpy.types.Panel):
         row.operator('camera_list.add_camera', text='ADD CAMERA' ,icon='VIEW_CAMERA')
         row.scale_y = 3
 
+        row.operator('camera_list.debug', text='Debug' ,icon='VIEW_CAMERA')
         row= layout.row()
         row.scale_y = 5
+        
+        row.operator('camera_list.view_coordinate', text='Debug_2' ,icon='FUND')
+        row= layout.row()
 
         layout.separator()
  
@@ -333,9 +463,11 @@ class MY_UL_List(bpy.types.UIList):
             layout.label(text="", icon = custom_icon)
 
 classes = [
+    CML_OT_ViewCoordinate,
     CML_OT_RenderingRequest,
     CML_OT_ViewCamera,
     CML_OT_SelectCamera,
+    CML_OT_Debug_Button,
     CamProperty,
     MY_UL_List,
     LIST_OT_NewItem,
