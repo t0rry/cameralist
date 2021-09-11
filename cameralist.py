@@ -254,71 +254,51 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
         
 
         #02 get camera's rotations(euler)
-        original_angle_x  = np.rad2deg(camera_list.ob.rotation_euler.x)
-        original_angle_z  = np.rad2deg(camera_list.ob.rotation_euler.z)
-
-        #02 -1 calculate sinΘ theta
-
-
-        #03 get camera's focus distance
-        original_view_distance = camera_list.ob.data.dof.focus_distance
-
-
-        #04 calculate cosine data cosΘ , cosφ
-        #-1 cosΘ theta (arc_degree)
-        """
-        i_count = 1
-        if original_angle_x > 0:
-
-            while original_angle_x > 360:
-                original_angle_x = original_angle_x - 360
-                i_count += i_count
+        original_angle_x  = camera_list.ob.rotation_euler.x
+        original_angle_z  = camera_list.ob.rotation_euler.z
+        
+        #03 calculate theta (180° = π = np.pi )
+        #03 -1 when the angle is 360° over
+        if original_angle_x > (2 * np.pi) :
+            while original_angle_x > (2 * np.pi):
+                original_angle_x = original_angle_x - (2 * np.pi)
             
-            thete = original_angle_x
-            thete_count = 1
+            if original_angle_x < np.pi:
+                theta = np.pi - original_angle_x
+                print("x > 2pi , x < pi")
 
-            while thete > 90:
-                thete -= thete -90
-                thete_count += thete_count
+            else:
+                
+                theta = 3 * np.pi - original_angle_x
+                print("x > 2pi , x > pi")
 
-
-            sin_theta = ( 180 - original_angle_x) + (360 * (i_count - 1) )
-            cos_theta = ((90 * i_count) - sin_theta ) + (360 * (i_count - 1) )
-
+        #03 -2 when the angle is 180° under
         else:
-            while original_angle_x < -90:
-                print(original_angle_x)
-                original_angle_x = original_angle_x + 90
-                i_count += i_count
-            sin_theta = ( 180 - original_angle_x) + (-90 * (i_count - 1) )
-            cos_theta = ((-90 * i_count) - sin_theta ) + (-90 * (i_count - 1) )
 
-        #-2 cosφ phi(arc_degree)
-        i_count2 = 1
-        if original_angle_z > 0:
+            if original_angle_x < np.pi:
+                theta = np.pi - original_angle_x
+                print("x < 2pi , x < pi")
 
-            while original_angle_z > 90:
-                print(original_angle_z)
-                original_angle_z = original_angle_z - 90
-                i_count2 += i_count2
-            sin_phi = original_angle_z + (90 * (i_count2 - 1) )
-            cos_phi =   ((90 * i_count2) - original_angle_z) + (90 * (i_count2 - 1) ) 
+            else:
+                theta =  3 * np.pi -original_angle_x
+                print("x < 2pi , x > pi")
+            
 
-        else:
-            while original_angle_z < -90:
-                print(original_angle_z)
-                original_angle_z = original_angle_z + 90
-                i_count2 += i_count2
-            sin_phi = original_angle_z + (-90 * (i_count2 - 1) )
-            cos_phi =  ((-90 * i_count2) - original_angle_z) + (-90 * (i_count2 - 1) ) 
-        """
+        print(np.rad2deg(theta))
+ 
+        #04 calculate phi
+        phi = original_angle_z - np.pi
 
+        #05 get camera's focus distance
+        original_view_distance = camera_list.ob.data.dof.focus_distance
+        
+        
         newPosition = np.empty([1,3], dtype=np.float64)
-        newPosition[:,0] = original_view_distance * np.sin(np.radians(original_angle_x)) * np.cos(np.radians(original_angle_z ))
-        newPosition[:,1] = original_view_distance * np.sin(np.radians(original_angle_x)) * np.sin(np.radians(original_angle_z ))
-        newPosition[:,2] = original_view_distance * np.cos(np.radians(original_angle_x))
+        newPosition[:,0] = original_view_distance * np.sin(theta) * np.cos(phi)
+        newPosition[:,1] = original_view_distance * np.sin(theta) * np.sin(phi)
+        newPosition[:,2] = original_view_distance * np.cos(theta)
         print("xyz は" + str(newPosition))
-
+        
 
 
               
@@ -327,6 +307,10 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
         context.space_data.region_3d.view_location.y = newPosition[:,1] + original_location.y
         context.space_data.region_3d.view_location.z = newPosition[:,2] + original_location.z
         
+        context.space_data.region_3d.view_distance = original_view_distance
+        
+        print(newPosition[:,0] + original_location.x)
+        print(original_location.x)
 
         return{'FINISHED'}
         
