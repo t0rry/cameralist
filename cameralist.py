@@ -324,13 +324,14 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
         newPosition[:,2] = original_view_distance * np.cos(theta)
         print("xyz は" + str(newPosition))
         
-
-
+        x = newPosition[:,0]
+        y = newPosition[:,1]
+        z= newPosition[:,2]
               
         #calculate view location
-        context.space_data.region_3d.view_location.x = newPosition[:,0] + original_location.x
-        context.space_data.region_3d.view_location.y = newPosition[:,1] + original_location.y
-        context.space_data.region_3d.view_location.z = newPosition[:,2] + original_location.z
+        context.space_data.region_3d.view_location.x = x + original_location.x
+        context.space_data.region_3d.view_location.y = y + original_location.y
+        context.space_data.region_3d.view_location.z = z + original_location.z
         
         context.space_data.region_3d.view_distance = original_view_distance
         
