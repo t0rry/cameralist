@@ -258,37 +258,62 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
         original_angle_z  = camera_list.ob.rotation_euler.z
         
         #03 calculate theta (180° = π = np.pi )
-        #03 -1 when the angle is 360° over
+        #03 -1 when the angle is 360 over
         if original_angle_x > (2 * np.pi) :
             while original_angle_x > (2 * np.pi):
                 original_angle_x = original_angle_x - (2 * np.pi)
             
             if original_angle_x < np.pi:
                 theta = np.pi - original_angle_x
-                print("x > 2pi , x < pi")
+                print("A :x > 2pi , x < pi")
 
             else:
                 
                 theta = 3 * np.pi - original_angle_x
-                print("x > 2pi , x > pi")
+                print("B :x > 2pi , x > pi")
 
-        #03 -2 when the angle is 180° under
+        #03 -2 when the angle is 360 under
         else:
 
             if original_angle_x < np.pi:
                 theta = np.pi - original_angle_x
-                print("x < 2pi , x < pi")
+                print("C :x < 2pi , x < pi")
 
             else:
                 theta =  3 * np.pi -original_angle_x
-                print("x < 2pi , x > pi")
+                print("D :x< 2pi , x > pi")
             
 
         print(np.rad2deg(theta))
  
         #04 calculate phi
-        phi = original_angle_z - np.pi
+        #04 - 1 when the angle is 270 over
+        if original_angle_z > (3 * np.pi / 2) :
+            while original_angle_z > (3 * np.pi / 2):
+                original_angle_z = original_angle_z - (3 * np.pi / 2)
+            
+            if original_angle_z < np.pi:
+                phi = original_angle_z + (np.pi / 2 )
+                print("A :z > 2pi , z < pi")
 
+            else:
+                
+                phi = original_angle_z + (np.pi / 2 )
+                print("B :z > 2pi , z > pi")
+
+        #03 -2 when the angle is 360 under
+        else:
+
+            if original_angle_z < np.pi:
+                phi = original_angle_z + (np.pi / 2 )
+                print("C :z < 2pi , z < pi")
+
+            else:
+                phi =  original_angle_z + (np.pi / 2 )
+                print("D :z < 2pi , z > pi")
+            
+        print(np.rad2deg(phi))
+        
         #05 get camera's focus distance
         original_view_distance = camera_list.ob.data.dof.focus_distance
         
@@ -311,7 +336,9 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
         
         print(newPosition[:,0] + original_location.x)
         print(original_location.x)
-
+        
+        
+        print("---------------DEBUG END---------------")
         return{'FINISHED'}
         
 class CML_OT_RenderingRequest(bpy.types.Operator):
