@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import StringProperty, IntProperty, CollectionProperty, PointerProperty , EnumProperty
+from bpy.props import StringProperty, IntProperty, CollectionProperty, PointerProperty , EnumProperty , BoolProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel
 
 import os 
@@ -215,7 +215,9 @@ class CML_OT_Debug_Button(bpy.types.Operator):
     bl_label = "Debug"
 
     def execute(self , context):
+        #debug to camera_view
 
+        
         #debug to screen data    
         area = context.space_data.region_3d
         print("distance")
@@ -230,12 +232,10 @@ class CML_OT_Debug_Button(bpy.types.Operator):
         #area.view_location.z =5
         print(area.view_perspective)
 
-        #debug to camera_view
-        index = context.scene.list_index
-        camera_list =context.scene.camera_list[index]
+
 
         #call to debug end
-        print("DEBUG END")
+        print("-----------DEBUG END--------------")
 
         return{'FINISHED'}
 
@@ -253,64 +253,36 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
         original_location = camera_list.ob.location 
         
 
-        #02 get camera's rotations(euler)
+        #02 get camera's rotations
+        #02-1 (euler)
         original_angle_x  = camera_list.ob.rotation_euler.x
         original_angle_z  = camera_list.ob.rotation_euler.z
+
+        #02-2 (Quaternion)
+        original_angele_quaternion = camera_list.ob.rotation_quaternion
         
         #03 calculate theta (180° = π = np.pi )
-        #03 -1 when the angle is 360 over
-        if original_angle_x > (2 * np.pi) :
-            while original_angle_x > (2 * np.pi):
-                original_angle_x = original_angle_x - (2 * np.pi)
-            
-            if original_angle_x < np.pi:
-                theta = np.pi - original_angle_x
-                print("A :x > 2pi , x < pi")
 
-            else:
-                
-                theta = 3 * np.pi - original_angle_x
-                print("B :x > 2pi , x > pi")
+        if original_angle_x < np.pi:
+            theta = np.pi - original_angle_x
+            print("A :x < 2pi , x < pi")
 
-        #03 -2 when the angle is 360 under
         else:
-
-            if original_angle_x < np.pi:
-                theta = np.pi - original_angle_x
-                print("C :x < 2pi , x < pi")
-
-            else:
-                theta =  3 * np.pi -original_angle_x
-                print("D :x< 2pi , x > pi")
+            theta =  3 * np.pi -original_angle_x
+            print("B :x< 2pi , x > pi")
             
 
         print(np.rad2deg(theta))
  
         #04 calculate phi
-        #04 - 1 when the angle is 270 over
-        if original_angle_z > (3 * np.pi / 2) :
-            while original_angle_z > (3 * np.pi / 2):
-                original_angle_z = original_angle_z - (3 * np.pi / 2)
-            
-            if original_angle_z < np.pi:
-                phi = original_angle_z + (np.pi / 2 )
-                print("A :z > 2pi , z < pi")
+        if original_angle_z < np.pi:
+            phi = original_angle_z + (np.pi / 2 )
+            print("A :z > 2pi , z < pi")
 
-            else:
-                
-                phi = original_angle_z + (np.pi / 2 )
-                print("B :z > 2pi , z > pi")
-
-        #03 -2 when the angle is 360 under
         else:
+            phi = original_angle_z + (np.pi / 2 )
+            print("B :z > 2pi , z > pi")
 
-            if original_angle_z < np.pi:
-                phi = original_angle_z + (np.pi / 2 )
-                print("C :z < 2pi , z < pi")
-
-            else:
-                phi =  original_angle_z + (np.pi / 2 )
-                print("D :z < 2pi , z > pi")
             
         print(np.rad2deg(phi))
         
@@ -322,11 +294,10 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
         newPosition[:,0] = original_view_distance * np.sin(theta) * np.cos(phi)
         newPosition[:,1] = original_view_distance * np.sin(theta) * np.sin(phi)
         newPosition[:,2] = original_view_distance * np.cos(theta)
-        print("xyz は" + str(newPosition))
         
         x = newPosition[:,0]
         y = newPosition[:,1]
-        z= newPosition[:,2]
+        z = newPosition[:,2]
               
         #calculate view location
         context.space_data.region_3d.view_location.x = x + original_location.x
@@ -334,14 +305,32 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
         context.space_data.region_3d.view_location.z = z + original_location.z
         
         context.space_data.region_3d.view_distance = original_view_distance
+
+
+        context.space_data.region_3d.view_rotation = original_angele_quaternion
+          
         
         print(newPosition[:,0] + original_location.x)
         print(original_location.x)
         
         
-        print("---------------DEBUG END---------------")
         return{'FINISHED'}
-        
+
+class CML_OT_Reset_View(bpy.types.Operator):
+    """ reset to 3d_view (Rotation,originPoint,etc....)"""
+    bl_idname = "camera_list.view_reset"
+    bl_label = "view to reset"
+    def execute(self, context):
+        #origin point
+        context.space_data.region_3d.view_location = [0,0,0]
+
+        #rotation
+        context.space_data.region_3d.view_rotation = [0.7158,0.4389,0.2906,0.4588]
+
+
+
+        return{'FINISHED'}
+
 class CML_OT_RenderingRequest(bpy.types.Operator):
     """Rendering in order of Camera_list"""
     bl_idname = "camera_list.rendering_request"
@@ -408,11 +397,12 @@ class PT_CML_Panel(bpy.types.Panel):
         row.operator('camera_list.add_camera', text='ADD CAMERA' ,icon='VIEW_CAMERA')
         row.scale_y = 3
 
-        row.operator('camera_list.debug', text='Debug' ,icon='VIEW_CAMERA')
-        row= layout.row()
-        row.scale_y = 5
-        
-        row.operator('camera_list.view_coordinate', text='Debug_2' ,icon='FUND')
+        row.scale_y = 1
+        row.operator('camera_list.view_coordinate', text='View to Camera' ,icon='VIEW_PERSPECTIVE')
+        row.operator('camera_list.debug', text='debug' ,icon='VIEW_PERSPECTIVE')
+        row.prop(scene,"view_rotation_checkBox", text="Rotation")
+
+        row.operator('camera_list.view_reset', text='View to Reset',icon='FILE_REFRESH')
         row= layout.row()
 
         layout.separator()
@@ -475,6 +465,7 @@ class MY_UL_List(bpy.types.UIList):
             layout.label(text="", icon = custom_icon)
 
 classes = [
+    CML_OT_Reset_View,
     CML_OT_ViewCoordinate,
     CML_OT_RenderingRequest,
     CML_OT_ViewCamera,
@@ -496,11 +487,16 @@ def register():
     bpy.types.Scene.camera_list = CollectionProperty(type = CamProperty)
     bpy.types.Scene.list_index = IntProperty(name = "Index for my_list",
                                              default = 0)
+    bpy.types.Scene.view_rotation_checkBox = BoolProperty(
+        name = "チェックボックス",
+        description = "説明",
+        default = False)
 
 def unregister():
 
     del bpy.types.Scene.camera_list
     del bpy.types.Scene.list_index
+    del bpy.types.Scene.view_rotation_checkBox
 
     for c in classes:
         bpy.utils.unregister_class(c)
