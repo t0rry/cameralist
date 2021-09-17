@@ -19,7 +19,7 @@ bl_info = {
     "support": "TESTING",
     "wiki_url": "",
     "tracker_url": "",
-    "category": "CAMERA"
+    "category": "Camera"
 }
 
 def update_ob(self,context,):
@@ -27,8 +27,6 @@ def update_ob(self,context,):
     camera_list = context.scene.camera_list[index]
 
     #update name
-
-    
 
     if camera_list.ob.type == "CAMERA":
         #update cam ob
@@ -215,24 +213,6 @@ class CML_OT_Debug_Button(bpy.types.Operator):
     bl_label = "Debug"
 
     def execute(self , context):
-        #debug to camera_view
-
-        
-        #debug to screen data    
-        area = context.space_data.region_3d
-        print("distance")
-        print(area.view_distance)
-        print("view_location")
-        print(area.view_location)
-        print("view_rotation")
-        print(area.view_rotation)
-        print("view_perspective")
-        #area.view_location.x =5
-        #area.view_location.y =-4
-        #area.view_location.z =5
-        print(area.view_perspective)
-
-
 
         #call to debug end
         print("-----------DEBUG END--------------")
@@ -243,6 +223,10 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
     """Calculation to View Coordinate """
     bl_idname = "camera_list.view_coordinate"
     bl_label = "view coordinate"
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.camera_list
 
     def execute(self,context):
         #00 camera_list,index
@@ -258,8 +242,6 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
         original_angle_x  = camera_list.ob.rotation_euler.x
         original_angle_z  = camera_list.ob.rotation_euler.z
 
-        #02-2 (Quaternion)
-        original_angele_quaternion = camera_list.ob.rotation_quaternion
         
         #03 calculate theta (180° = π = np.pi )
 
@@ -272,7 +254,7 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
             print("B :x< 2pi , x > pi")
             
 
-        print(np.rad2deg(theta))
+        print("theta is" + str(np.rad2deg(theta)))
  
         #04 calculate phi
         if original_angle_z < np.pi:
@@ -284,7 +266,7 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
             print("B :z > 2pi , z > pi")
 
             
-        print(np.rad2deg(phi))
+        print("phi is" + str(np.rad2deg(phi)))
         
         #05 get camera's focus distance
         original_view_distance = camera_list.ob.data.dof.focus_distance
@@ -306,12 +288,17 @@ class CML_OT_ViewCoordinate(bpy.types.Operator):
         
         context.space_data.region_3d.view_distance = original_view_distance
 
+        if context.scene.view_rotation_checkBox == True:
+            default_rotation_mode = camera_list.ob.rotation_mode
+            camera_list.ob.rotation_mode = 'QUATERNION'
+            camera_list.ob.rotation_mode = default_rotation_mode
 
-        context.space_data.region_3d.view_rotation = original_angele_quaternion
-          
+            context.space_data.region_3d.view_rotation = camera_list.ob.rotation_quaternion
         
-        print(newPosition[:,0] + original_location.x)
-        print(original_location.x)
+        if context.scene.view_lens_checkBox == True:
+            context.space_data.lens = camera_list.ob.data.lens
+
+        print("angel is" + str(camera_list.ob.rotation_quaternion))
         
         
         return{'FINISHED'}
@@ -327,7 +314,8 @@ class CML_OT_Reset_View(bpy.types.Operator):
         #rotation
         context.space_data.region_3d.view_rotation = [0.7158,0.4389,0.2906,0.4588]
 
-
+        #lens
+        context.space_data.lens = 50
 
         return{'FINISHED'}
 
@@ -364,11 +352,11 @@ class CML_OT_RenderingRequest(bpy.types.Operator):
             bpy.data.images['Render Result'].save_render(filepath = os.environ['HOMEPATH'] + '/' + camera_list[num].cam_name + 'png')
         return{'FINISHED'}
 
-class PT_CML_Panel(bpy.types.Panel):
-    """Demo panel for UI list Tutorial."""
+class PT_CML_Main(bpy.types.Panel):
+    """Main List Panel"""
 
     bl_label = "Camera List"
-    bl_idname = "CML_PT_LIST"
+    bl_idname = "CML_PT_Main"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "CameraList"
@@ -376,37 +364,96 @@ class PT_CML_Panel(bpy.types.Panel):
 
     def draw_header(self, context):
         layout = self.layout
-        layout.label(text="", icon='VIEW_CAMERA')   
+        layout.label(text="", icon='ALIGN_LEFT')   
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        
+        row = layout.row()
+        row.template_list("MY_UL_List", "camera_list_id", scene,
+                          "camera_list", scene, "list_index")
+
+        row = layout.row(align=True)
+        row.operator('camera_list.new_item', text='ADD')
+        row.operator('camera_list.delete_item', text='DALETE')
+        row.operator('camera_list.move_item', text='UP').direction = 'UP'
+        row.operator('camera_list.move_item', text='DOWN').direction = 'DOWN'
+        
+class PT_CML_Action(bpy.types.Panel):
+    """Action Panel"""
+
+    bl_label = "Action"
+    bl_idname = "CML_PT_Action"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "CameraList"
+
+
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon='VIEW_PAN')  
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
 
-        row = layout.row()
-        row.template_list("MY_UL_List", "camera_list_id", scene,
-                          "camera_list", scene, "list_index")
+        row = layout.row(align=True)
+        row.operator('camera_list.add_camera', text='ADD CAMERA' ,icon='VIEW_CAMERA') 
 
         row = layout.row()
-
-        row.operator('camera_list.new_item', text='ADD')
-        row.operator('camera_list.delete_item', text='DALETE')
-        row.operator('camera_list.move_item', text='UP').direction = 'UP'
-        row.operator('camera_list.move_item', text='DOWN').direction = 'DOWN'
-
+        row.label(text= "NOTE change to scene camera")
+            
         row = layout.row()
-        row.operator('camera_list.add_camera', text='ADD CAMERA' ,icon='VIEW_CAMERA')
-        row.scale_y = 3
+        row.operator('camera_list.view_camera', text='View_Camera' ,icon='VIEW_CAMERA')
 
-        row.scale_y = 1
+        row.operator('camera_list.select_camera', text='Selected Item' ,icon='RESTRICT_SELECT_OFF')
+
+class PT_CML_View(bpy.types.Panel):
+    """View Panel"""
+
+    bl_label = "View"
+    bl_idname = "CML_PT_View"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "CameraList"
+
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon='VIEW_CAMERA')  
+
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        row = layout.row(align=True)
         row.operator('camera_list.view_coordinate', text='View to Camera' ,icon='VIEW_PERSPECTIVE')
-        row.operator('camera_list.debug', text='debug' ,icon='VIEW_PERSPECTIVE')
+
+        row = layout.row(align=True)
         row.prop(scene,"view_rotation_checkBox", text="Rotation")
-
+        row.prop(scene,"view_lens_checkBox", text="Lens")
         row.operator('camera_list.view_reset', text='View to Reset',icon='FILE_REFRESH')
-        row= layout.row()
 
-        layout.separator()
- 
+class PT_CML_RenderingSupport(bpy.types.Panel):
+    """Rendering Support Panel"""
+
+    bl_label = "Rendering Support"
+    bl_idname = "RenderingSupport"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "CameraList"
+
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon='RESTRICT_RENDER_OFF')  
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        layout = self.layout
+        layout.label (text="It will not be displayed if there is no data in the list." )
         if scene.list_index >= 0 and scene.camera_list:
             item = scene.camera_list[scene.list_index]
 
@@ -417,13 +464,7 @@ class PT_CML_Panel(bpy.types.Panel):
             row.prop(item,"exchange_data",text = "ExchangeData") 
             row.operator('camera_list.change_item', text='exchange data')
             '''
-            row = layout.row()
-            row.label(text= "NOTE change to scene camera")
             
-            row = layout.row()
-            row.operator('camera_list.view_camera', text='View_Camera' ,icon='VIEW_CAMERA')
-
-            row.operator('camera_list.select_camera', text='Selected Item' ,icon='RESTRICT_SELECT_OFF')
             
 
             layout.separator()
@@ -435,6 +476,26 @@ class PT_CML_Panel(bpy.types.Panel):
             box.prop(rd, "filepath", text="")
             box.prop(item, "name")
             box.operator("camera_list.rendering_request", text = "renderinig req",icon ="RESTRICT_VIEW_OFF")
+
+class PT_CML_Debug(bpy.types.Panel):
+    """Debug Panel"""
+
+    bl_label = "Debug Panel"
+    bl_idname = "Debug"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "CameraList"
+
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon='FUND')  
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        row = layout.row(align=True)
+        row.operator('camera_list.debug', text='debug' ,icon='VIEW_PERSPECTIVE')
 
 class MY_UL_List(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data,
@@ -457,8 +518,8 @@ class MY_UL_List(bpy.types.UIList):
 
             row.scale_x = 1
             layout.enabled= True
-            row.prop(item, "frame_start")
-            row.prop(item, "frame_end")
+            #row.prop(item, "frame_start")
+            #row.prop(item, "frame_end")
 
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
@@ -476,7 +537,11 @@ classes = [
     LIST_OT_NewItem,
     LIST_OT_DeleteItem,
     LIST_OT_MoveItem,
-    PT_CML_Panel,
+    PT_CML_Main,
+    PT_CML_Action,
+    PT_CML_View,
+    PT_CML_RenderingSupport,
+    PT_CML_Debug,
     CML_OT_AddCamera,
 ]
 
@@ -488,8 +553,12 @@ def register():
     bpy.types.Scene.list_index = IntProperty(name = "Index for my_list",
                                              default = 0)
     bpy.types.Scene.view_rotation_checkBox = BoolProperty(
-        name = "チェックボックス",
-        description = "説明",
+        name = "Rotation CheckBox",
+        description = "The rotation is reflected when the viewpoint is moved.",
+        default = False)
+    bpy.types.Scene.view_lens_checkBox = BoolProperty(
+        name = "lens CheckBox",
+        description = "The lens(mm) is reflected when the viewpoint is moved.",
         default = False)
 
 def unregister():
@@ -497,6 +566,7 @@ def unregister():
     del bpy.types.Scene.camera_list
     del bpy.types.Scene.list_index
     del bpy.types.Scene.view_rotation_checkBox
+    del bpy.types.Scene.view_lens_checkBox
 
     for c in classes:
         bpy.utils.unregister_class(c)
